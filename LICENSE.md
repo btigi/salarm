@@ -1,0 +1,1 @@
+salarm is licensed under the MIT license https://mit-license.org/
