@@ -95,7 +95,7 @@ namespace salarm.wpf.services
                 System.Media.SystemSounds.Beep.Play();
             }
 
-            System.Windows.MessageBox.Show(alarm.Message, "Alarm", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            ShowToastNotification("Alarm", alarm.Message);
 
             _activeAlarms.Remove(alarm);
             
@@ -148,6 +148,39 @@ namespace salarm.wpf.services
             var player = new System.Media.SoundPlayer(filePath);
             player.LoadAsync();
             player.Play();
+        }
+
+        private void ShowToastNotification(string title, string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return;
+
+            try
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (System.Windows.Application.Current is App app)
+                    {
+                        using var notifyIcon = new NotifyIcon
+                        {
+                            Icon = SystemIcons.Information,
+                            Visible = true,
+                            BalloonTipTitle = title,
+                            BalloonTipText = message,
+                            BalloonTipIcon = ToolTipIcon.Info
+                        };
+                        
+                        notifyIcon.ShowBalloonTip(5000);
+                        
+                        Thread.Sleep(100);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to show notification: {ex.Message}");
+                Console.WriteLine($"Alarm: {title} - {message}");
+            }
         }
     }
 }
