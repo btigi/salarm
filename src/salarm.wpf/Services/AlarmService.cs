@@ -1,5 +1,7 @@
 using salarm.shared.interfaces;
 using salarm.shared.models;
+using NAudio.Wave;
+using System.IO;
 
 namespace salarm.wpf.services
 {
@@ -73,19 +75,27 @@ namespace salarm.wpf.services
 
             alarm.IsTriggered = true;
 
-            System.Windows.MessageBox.Show(alarm.Message, "Alarm", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-
             if (!string.IsNullOrEmpty(alarm.SoundFilePath))
             {
-                try
+                Task.Run(() =>
                 {
-                    System.Media.SystemSounds.Beep.Play();
-                }
-                catch
-                {
-                    System.Media.SystemSounds.Beep.Play();
-                }
+                    try
+                    {
+                        PlayAudioFile(alarm.SoundFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Console.WriteLine($"Failed to play audio file '{alarm.SoundFilePath}': {ex.Message}");
+                        System.Media.SystemSounds.Beep.Play();
+                    }
+                });
             }
+            else
+            {
+                System.Media.SystemSounds.Beep.Play();
+            }
+
+            System.Windows.MessageBox.Show(alarm.Message, "Alarm", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
 
             _activeAlarms.Remove(alarm);
             
@@ -94,6 +104,50 @@ namespace salarm.wpf.services
                 timer.Dispose();
                 _timers.Remove(alarmId);
             }
+        }
+
+        private void PlayAudioFile(string filePath)
+        {
+            if (!System.IO.File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"Audio file not found: {filePath}");
+            }
+
+            var extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+            
+            switch (extension)
+            {
+                case ".mp3":
+                    PlayMp3File(filePath);
+                    break;
+                case ".wav":
+                    PlayWavFile(filePath);
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported audio format: {extension}");
+            }
+        }
+
+        private void PlayMp3File(string filePath)
+        {
+            var audioFile = new AudioFileReader(filePath);
+            var outputDevice = new WaveOutEvent();
+            
+            outputDevice.PlaybackStopped += (sender, e) =>
+            {
+                outputDevice.Dispose();
+                audioFile.Dispose();
+            };
+            
+            outputDevice.Init(audioFile);
+            outputDevice.Play();
+        }
+
+        private void PlayWavFile(string filePath)
+        {
+            var player = new System.Media.SoundPlayer(filePath);
+            player.LoadAsync();
+            player.Play();
         }
     }
 }
