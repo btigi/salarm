@@ -102,4 +102,39 @@ public class NamedPipeClient : IAlarmClient
             throw new Exception("Could not connect to alarm service. Make sure the WPF application is running.");
         }
     }
+
+    public async Task<bool> CancelAlarm(Guid alarmId)
+    {
+        using var pipeClient = new NamedPipeClientStream(".", "salarm_pipe", PipeDirection.InOut);
+        
+        try
+        {
+            await pipeClient.ConnectAsync(5000); // 5 second timeout
+
+            var request = new Command
+            {
+                Action = "cancelalarm",
+                AlarmId = alarmId
+            };
+
+            var requestJson = JsonSerializer.Serialize(request);
+            var requestBytes = Encoding.UTF8.GetBytes(requestJson);
+            await pipeClient.WriteAsync(requestBytes, 0, requestBytes.Length);
+
+            var buffer = new byte[4096];
+            var bytesRead = await pipeClient.ReadAsync(buffer, 0, buffer.Length);
+            var response = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            
+            if (response.StartsWith("Error:"))
+            {
+                throw new Exception(response);
+            }
+
+            return response.Contains("successfully");
+        }
+        catch (TimeoutException)
+        {
+            throw new Exception("Could not connect to alarm service. Make sure the WPF application is running.");
+        }
+    }
 }

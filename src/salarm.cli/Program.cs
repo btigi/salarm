@@ -22,6 +22,13 @@ class Program
                 return;
             }
 
+            // Check for cancel command
+            if (args[0].ToLower() == "cancel" && args.Length > 1)
+            {
+                await HandleCancelCommand(args[1]);
+                return;
+            }
+
             string? timeArg = null;
             string? soundFile = null;
             string? message = null;
@@ -124,6 +131,66 @@ class Program
         }
     }
 
+    static async Task HandleCancelCommand(string partialGuid)
+    {
+        try
+        {
+            var client = new NamedPipeClient();
+            var alarms = await client.GetActiveAlarms();
+            
+            if (!alarms.Any())
+            {
+                Console.WriteLine("No pending alarms to cancel.");
+                return;
+            }
+
+            // Find alarms that match the partial GUID
+            var matchingAlarms = alarms.Where(a => 
+                a.Id.ToString().StartsWith(partialGuid, StringComparison.OrdinalIgnoreCase) ||
+                a.Id.ToString().Replace("-", "").StartsWith(partialGuid, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            if (matchingAlarms.Count == 0)
+            {
+                Console.WriteLine($"No alarm found with ID starting with '{partialGuid}'.");
+                Console.WriteLine("Use 'salarm list' to see all pending alarms.");
+                return;
+            }
+
+            if (matchingAlarms.Count > 1)
+            {
+                Console.WriteLine($"Multiple alarms found starting with '{partialGuid}':");
+                Console.WriteLine("Please be more specific. Matching alarms:");
+                
+                foreach (var alarm in matchingAlarms.OrderBy(a => a.TriggerTime))
+                {
+                    var timeRemaining = alarm.TriggerTime - DateTime.Now;
+                    var timeRemainingStr = FormatTimeSpan(timeRemaining);
+                    Console.WriteLine($"  {alarm.Id} - {alarm.Message} ({timeRemainingStr} remaining)");
+                }
+                return;
+            }
+
+            // Cancel the single matching alarm
+            var alarmToCancel = matchingAlarms.First();
+            var success = await client.CancelAlarm(alarmToCancel.Id);
+            
+            if (success)
+            {
+                Console.WriteLine($"Alarm cancelled successfully (ID: {alarmToCancel.Id})");
+                Console.WriteLine($"Message: {alarmToCancel.Message}");
+            }
+            else
+            {
+                Console.WriteLine("Failed to cancel alarm.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
     static string FormatTimeSpan(TimeSpan timeSpan)
     {
         if (timeSpan.TotalMilliseconds < 0)
@@ -149,6 +216,7 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Commands:");
         Console.WriteLine("  list, -l, --list         Show pending alarms");
+        Console.WriteLine("  cancel <partial-id>       Cancel an alarm by partial GUID");
         Console.WriteLine();
         Console.WriteLine("Set Alarm Options:");
         Console.WriteLine("  -t, --time <time>        Time until alarm (e.g., 5s, 10m, 2h, 1d, or 4h2m)");
@@ -159,6 +227,8 @@ class Program
         Console.WriteLine("Examples:");
         Console.WriteLine("  salarm -t 5m -m \"Take a break\"");
         Console.WriteLine("  salarm list");
+        Console.WriteLine("  salarm cancel 12ab34cd");
+        Console.WriteLine("  salarm cancel 12        # Cancel alarm starting with '12'");
         Console.WriteLine("  salarm -t 1h -f alarm.mp3 -m \"Meeting reminder\"");
     }
 }
