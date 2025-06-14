@@ -1,33 +1,36 @@
 using Microsoft.Extensions.DependencyInjection;
 using salarm.shared.interfaces;
+using System.IO;
+using Forms = System.Windows;
 
 namespace salarm.wpf.services
 {
     public class SystemTrayIcon : IDisposable
     {
         private readonly NotifyIcon _notifyIcon;
-        private readonly IAlarmService _alarmService;
+        private readonly Icon _appIcon;
 
         public SystemTrayIcon(IServiceProvider serviceProvider)
-        {
-            _alarmService = serviceProvider.GetRequiredService<IAlarmService>();
+        {            
+            string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
+            _appIcon = File.Exists(iconPath) ? new Icon(iconPath) : SystemIcons.Application;
             
             _notifyIcon = new NotifyIcon
             {
-                Icon = SystemIcons.Application,
+                Icon = _appIcon,
                 Visible = true,
-                Text = "salarm"
+                Text = "Salarm"
             };
 
             _notifyIcon.ContextMenuStrip = new ContextMenuStrip();
-            _notifyIcon.ContextMenuStrip.Items.Add("Exit", null, (s, e) => System.Windows.Application.Current.Shutdown());
+            _notifyIcon.ContextMenuStrip.Items.Add("Exit", null, (s, e) => Forms.Application.Current.Shutdown());
 
             _notifyIcon.DoubleClick += (s, e) =>
             {
-                if (System.Windows.Application.Current.MainWindow != null)
+                if (Forms.Application.Current.MainWindow != null)
                 {
-                    System.Windows.Application.Current.MainWindow.Show();
-                    System.Windows.Application.Current.MainWindow.WindowState = System.Windows.WindowState.Normal;
+                    Forms.Application.Current.MainWindow.Show();
+                    Forms.Application.Current.MainWindow.WindowState = Forms.WindowState.Normal;
                 }
             };
         }
@@ -35,6 +38,7 @@ namespace salarm.wpf.services
         public void Dispose()
         {
             _notifyIcon.Dispose();
+            _appIcon.Dispose();
         }
     }
 }
