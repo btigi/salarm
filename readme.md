@@ -49,6 +49,8 @@ salarm -t 4h30m
 
 ### Command-line Options
 
+- `list, -l, --list`: List pending alarms
+- `cancel <partial-id>`: Cancel an alarm by partial GUID
 - `-t, --time <time>`: Time until alarm (required)
   - Supported units: s (seconds), m (minutes), h (hours), d (days)
   - Examples: 5s, 10m, 2h, 1d, 4h2m
