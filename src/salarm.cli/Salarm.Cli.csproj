@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>salarm.cli</RootNamespace>
+    <AssemblyName>salarm</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
